@@ -1,0 +1,226 @@
+*display employees info in report*
+*&---------------------------------------------------------------------*
+*& Report ZREPORT_EMP
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zreport_emp.
+
+TABLES zemployees.
+*TABLES zdepartment.
+
+DATA : itab     TYPE TABLE OF zit_str,
+       wa       TYPE zit_str,
+       pu_ucomm TYPE sy-subrc.
+
+
+SELECTION-SCREEN BEGIN OF LINE.
+  SELECTION-SCREEN COMMENT 23(5) TEXT-101 FOR FIELD p_code.
+  PARAMETERS : p_code   TYPE zdepartment-d_code MATCHCODE OBJECT zemployees.
+  SELECTION-SCREEN COMMENT 32(12) TEXT-102 FOR FIELD p_dep.
+  PARAMETERS : p_dep    TYPE zdepartment-d_description." MATCHCODE OBJECT zemployees1.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN BEGIN OF LINE.
+  SELECTION-SCREEN COMMENT (15) TEXT-103 FOR FIELD p_rb1.
+  PARAMETERS : p_rb1 RADIOBUTTON GROUP grb1.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN BEGIN OF LINE.
+  SELECTION-SCREEN COMMENT (15) TEXT-104 FOR FIELD p_rb2.
+  PARAMETERS : p_rb2 RADIOBUTTON GROUP grb1.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN BEGIN OF LINE.
+  SELECTION-SCREEN COMMENT (15) TEXT-105 FOR FIELD p_rb3.
+  PARAMETERS : p_rb3 RADIOBUTTON GROUP grb1.
+SELECTION-SCREEN END OF LINE.
+
+SELECT a~emp_id
+       a~name
+       a~birthdate
+       a~d_code
+       b~d_description
+       a~deleted
+       INTO CORRESPONDING FIELDS OF TABLE itab FROM zemployees AS a
+       INNER JOIN zdepartment AS b
+       ON a~d_code = b~d_code.
+*       WHERE A~D_CODE IN B~D_CODE.
+AT SELECTION-SCREEN OUTPUT.
+  SELECT SINGLE *
+              FROM zdepartment INTO CORRESPONDING FIELDS OF wa
+              WHERE d_code EQ p_code.
+  p_dep   = wa-d_description.
+
+START-OF-SELECTION.
+
+  IF p_rb1 = 'X'.
+    IF p_code IS INITIAL.
+      PERFORM rb1_all_data.
+      PERFORM display.
+    ELSEIF p_code IS NOT INITIAL.
+      PERFORM rb1_data.
+      PERFORM display.
+    ENDIF.
+
+  ELSEIF p_rb2 = 'X'.
+    IF p_code IS INITIAL.
+      PERFORM rb2_all_data.
+      PERFORM display.
+    ELSEIF p_code IS NOT INITIAL.
+      PERFORM rb2_data.
+      PERFORM display.
+    ENDIF.
+
+  ELSEIF p_rb3 = 'X'.
+    IF p_code IS NOT INITIAL.
+      PERFORM get_data_with_code .
+      PERFORM display.
+    ELSEIF p_code IS INITIAL.
+      PERFORM get_all_data.
+      PERFORM display.
+    ENDIF.
+
+  ENDIF.
+
+*&---------------------------------------------------------------------*
+*& Form GET_DATA_WITH_CODE
+*&---------------------------------------------------------------------*
+FORM get_data_with_code .
+
+  SELECT a~emp_id
+         a~name
+         a~birthdate
+         a~d_code
+         b~d_description
+         a~deleted
+         INTO CORRESPONDING FIELDS OF TABLE itab FROM zemployees AS a
+         INNER JOIN zdepartment AS b
+         ON a~d_code = b~d_code
+         WHERE a~d_code = p_code ORDER BY emp_id.
+
+  SORT itab BY d_code.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form GET_DATA
+*&---------------------------------------------------------------------*
+
+FORM get_all_data .
+
+  SELECT a~emp_id
+         a~name
+         a~birthdate
+         a~d_code
+         b~d_description
+         a~deleted
+         INTO CORRESPONDING FIELDS OF TABLE itab FROM zemployees AS a
+         INNER JOIN zdepartment AS b
+         ON a~d_code = b~d_code ORDER BY emp_id.
+
+  SORT itab BY d_code.
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form DISPLAY
+*&---------------------------------------------------------------------*\
+FORM display .
+
+  IF itab IS INITIAL.
+    MESSAGE 'NO EMPLOYEES IN THIS DEPARTMENT' TYPE 'S' DISPLAY LIKE 'E' .
+  ELSEIF itab IS NOT INITIAL.
+    CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+      EXPORTING
+        i_structure_name = 'ZIT_STR'
+      TABLES
+        t_outtab         = itab[]
+      EXCEPTIONS
+        program_error    = 1
+        OTHERS           = 2.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form rb1_all_data
+*&---------------------------------------------------------------------*
+FORM rb1_all_data .
+  SELECT a~emp_id
+         a~name
+         a~birthdate
+         a~d_code
+         b~d_description
+         a~deleted
+         INTO CORRESPONDING FIELDS OF TABLE itab FROM zemployees AS a
+         INNER JOIN zdepartment AS b
+         ON a~d_code = b~d_code
+         WHERE a~deleted = ' ' ORDER BY emp_id.
+
+  SORT itab BY d_code.
+
+*    PERFORM display.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form rb1_data
+*&---------------------------------------------------------------------*
+FORM rb1_data .
+  SELECT a~emp_id
+         a~name
+         a~birthdate
+         a~d_code
+         b~d_description
+         a~deleted
+         INTO CORRESPONDING FIELDS OF TABLE itab FROM zemployees AS a
+         INNER JOIN zdepartment AS b
+         ON a~d_code = b~d_code
+         WHERE a~d_code = p_code AND a~deleted = ' ' ORDER BY emp_id.
+
+  SORT itab BY d_code.
+
+*    PERFORM display.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form rb2_all_data
+*&---------------------------------------------------------------------*
+FORM rb2_all_data .
+  SELECT a~emp_id
+         a~name
+         a~birthdate
+         a~d_code
+         b~d_description
+         a~deleted
+         INTO CORRESPONDING FIELDS OF TABLE itab FROM zemployees AS a
+         INNER JOIN zdepartment AS b
+         ON a~d_code = b~d_code
+         WHERE a~deleted = 'd' ORDER BY emp_id.
+
+  SORT itab BY d_code.
+
+*    PERFORM display.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form rb2_data
+*&---------------------------------------------------------------------*
+FORM rb2_data .
+  SELECT a~emp_id
+         a~name
+         a~birthdate
+         a~d_code
+         b~d_description
+         a~deleted
+         INTO CORRESPONDING FIELDS OF TABLE itab FROM zemployees AS a
+         INNER JOIN zdepartment AS b
+         ON a~d_code = b~d_code
+         WHERE a~d_code = p_code AND a~deleted = 'd' ORDER BY emp_id.
+
+  SORT itab BY d_code.
+
+*    PERFORM display.
+ENDFORM.
